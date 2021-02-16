@@ -1,0 +1,10 @@
+repos:
+  - upstream: "https://github.com/spdk/spdk"
+  - upstream: "https://github.com/spdk/dpdk.git"
+  - upstream: "https://github.com/spdk/isa-l.git"
+  - upstream: "https://github.com/Open-CAS/ocf.git"
+  - upstream: "https://git.kernel.dk/liburing"
+  - upstream: "https://github.com/linux-nvme/libnvme.git"
+  - upstream: "https://github.com/nutanix/libvfio-user.git"
+  - upstream: "https://github.com/wpdk/wpdk"
+  - upstream: "https://git.kernel.dk/fio"
