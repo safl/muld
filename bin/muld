@@ -27,7 +27,7 @@ import yaml
 
 VERSION_MAJOR = 0
 VERSION_MINOR = 0
-VERSION_PATCH = 4
+VERSION_PATCH = 5
 
 
 def expand_path(path):
