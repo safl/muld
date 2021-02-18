@@ -5,18 +5,17 @@
   For a list of repos do:
 
   * clone/fetch from upstream to local
-    - prune; remove what does not exist on upstream
-  * push tags from local to "downstream"
-    - no forcing, and only pushing tags
+    - prune tags and branches; remove what does not exist on upstream
+  * push branches, not forcing it, from local to "downstream"
+  * push tags, not forcing it,  from local to "downstream"
 
-  Basically, this is a soft/manual way of forwarding changes from an "upstream"
-  to a "downstream" repository, dumping it locally to do manual intervention
-  such as fixing up non fast-forwardable changes, or to also push select
-  branches as well.
+  Basically, this is a soft way of forwarding changes from an "upstream" to a
+  "downstream" repository, via a "local" repository.
 
-  It intentionally uses a "standalone" mirror-directory, one in which no
-  additions are made locally, they are just fetched from upstream and pushed
-  downstream, to avoid messing up any local development repository.
+  The local mirror-repository must not be used for anything else that this
+  task, in case of any kind of error, then 'muld' exits with an error-message,
+  giving the user user a chance to fix what may be wrong. There are no clever
+  tricks applied to resolve anything.
 """
 import subprocess
 import argparse
@@ -193,6 +192,11 @@ def repo_track_upstream_branches(conf, repo):
 
 def main(conf):
     """Main entry point"""
+    # pylint: disable=too-many-return-statements
+    # pylint: disable=too-many-branches
+    # This main function is the core logic, it will just be harder to
+    # understand what goes on if it is encapsulated / split further up into
+    # functions
 
     if conf is None:
         return 1
@@ -201,42 +205,67 @@ def main(conf):
 
     for repo in conf["repos"]:
         if "upstream" not in repo:
-            print("# invalid repo: %r", repo)
-            continue
+            print(f"# invalid repo: {repo}; fix it, then run again")
+            return 1
 
-        print("## repos: %s" % repo_name(repo), flush=True)
-
-        if os.path.exists(repo_path(conf, repo)):
-            execute(
-                ["git", "fetch", "-p", "origin"],
-                cwd=repo_path(conf, repo)
-            )
-        else:
-            execute(
-                [
-                    "git", "clone", repo["upstream"], repo_name(repo),
-                    repo_path(conf, repo)
-                ],
+        if not os.path.exists(repo_path(conf, repo)):   # Grab the repository
+            _, _, rcode = execute(
+                ["git", "clone", repo["upstream"], repo_path(conf, repo)],
                 cwd=conf["mirrors"]
             )
+            if rcode:
+                print(f"failed cloning: {repo}; aborting for manual fixup")
+                return 1
+
+            _, _, rcode = execute(
+                ["git", "remote", "rename", "origin", "upstream"],
+                cwd=repo_path(conf, repo)
+            )
+            if rcode:
+                print(f"failed cloning: {repo}; aborting for manual fixup")
+                return 1
+
+        _, _, rcode = execute(
+            ["git", "fetch", "-pP", "upstream"],
+            cwd=repo_path(conf, repo)
+        )
+        if rcode:
+            print("failed fetching; aborting for manual fixup")
+            return 1
+
+        if repo_track_upstream_branches(conf, repo):
+            print("failed tracking upstream; aborting for manual fixup")
+            return 1
 
         if repo_downstream(repo) is None:
+            print(f"no 'downstream'; skipping further handling of {repo}")
             continue
 
-        out, _, _ = execute(
-            ["git", "remote", "-v"],
-            cwd=repo_path(conf, repo), pipe=True
-        )
-        if "downstream" not in out.decode("utf-8"):
-            execute(
+        rnames = repo_remote_names(conf, repo)
+        if "downstream" not in rnames:
+            _, _, rcode = execute(
                 ["git", "remote", "add", "downstream", repo["downstream"]],
                 cwd=repo_path(conf, repo)
             )
+            if rcode:
+                print("# failed adding downstream; aborting for manual fixup")
+                return 1
 
-        execute(  # clone the repository
-            ["git", "push", repo["downstream"], "--tags", ":"],
+        _, _, rcode = execute(  # push branches
+            ["git", "push", repo["downstream"], "--all"],
             cwd=repo_path(conf, repo)
         )
+        if rcode:
+            print("# failed pushing branches; aborting for manual fixup")
+            return 1
+
+        _, _, rcode = execute(  # push tags
+            ["git", "push", repo["downstream"], "--tags"],
+            cwd=repo_path(conf, repo)
+        )
+        if rcode:
+            print("# failed pushing tags; aborting for manual fixup")
+            return 1
 
     return 0
 
