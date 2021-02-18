@@ -83,7 +83,7 @@ def execute(cmd, cwd=None, pipe=False):
     out, err = proc.communicate()
     rcode = proc.returncode
 
-    print("# rcode: %d\n" % (rcode), flush=True)
+    print(f"# rcode: {rcode}\n", flush=True)
     if rcode:
         print("\n## ---=={[ EPIC FAIL -- see above -- EPIC FAIL ]}==--- ##\n")
 
@@ -114,6 +114,81 @@ def repo_path(conf, repo):
     """Returns local path on filesystem to repository inside mirrors"""
 
     return os.path.join(conf["mirrors"], repo_name(repo))
+
+
+def repo_remote_names(conf, repo):
+    """Return a list of remote-names for the given repo"""
+
+    rnames = set()
+
+    out, _, _ = execute(
+        ["git", "remote", "-v"],
+        cwd=repo_path(conf, repo), pipe=True
+    )
+    for line in out.decode("utf-8").splitlines():
+        rnames.add(line.split()[0])
+
+    return list(rnames)
+
+
+def repo_local_branches(conf, repo):
+    """Return a list of local branches for the given repo"""
+
+    rnames = set()
+
+    out, _, _ = execute(
+        ["git", "branch", "-l"],
+        cwd=repo_path(conf, repo), pipe=True
+    )
+    for line in (ln.strip() for ln in out.decode("utf-8").splitlines()):
+        rnames.add(line.strip().replace("* ", ""))
+
+    return sorted(list(rnames))
+
+
+def repo_upstream_branches(conf, repo):
+    """Return a list of "upstream" branches for the given repo"""
+
+    rnames = set()
+
+    out, _, _ = execute(
+        ["git", "branch", "-r"],
+        cwd=repo_path(conf, repo), pipe=True
+    )
+    for line in (ln.strip() for ln in out.decode("utf-8").splitlines()):
+        if (not line.startswith("upstream")) or ("->" in line):
+            continue
+
+        rnames.add(line.strip())
+
+    return sorted(list(rnames))
+
+
+def repo_track_upstream_branches(conf, repo):
+    """Track all upstream branches"""
+
+    branches_upstream = repo_upstream_branches(conf, repo)
+    branches_local = repo_local_branches(conf, repo)
+
+    for upstream in branches_upstream:
+        local = upstream[len("upstream/"):]
+
+        if local in branches_local:
+            _, _, rcode = execute(
+                ["git", "branch", "--set-upstream-to", upstream, local],
+                cwd=repo_path(conf, repo)
+            )
+        else:
+            _, _, rcode = execute(
+                ["git", "branch", "--track", local, upstream],
+                cwd=repo_path(conf, repo)
+            )
+
+        if rcode:
+            print(f"# failed tracking: {upstream}")
+            return 1
+
+    return 0
 
 
 def main(conf):
