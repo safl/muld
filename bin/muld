@@ -56,17 +56,21 @@ def args_to_conf():
 
     args = prsr.parse_args()
     args.mirrors = expand_path(args.mirrors)
-    if args.yaml is None:
-        args.yaml = os.path.join(args.mirrors, "muld.yml")
-    args.yaml = expand_path(args.yaml)
+    if args.conf is None:
+        args.conf = os.path.join(args.mirrors, "muld.yml")
+    args.conf = expand_path(args.conf)
 
-    conf = {}
-    with open(args.conf, 'r') as yml_file:
-        conf.update(yaml.safe_load(yml_file))
+    try:
+        conf = {}
+        with open(args.conf, 'r') as yml_file:
+            conf.update(yaml.safe_load(yml_file))
 
-    conf["mirrors"] = args.mirrors
+        conf["mirrors"] = args.mirrors
 
-    return conf
+        return conf
+    except FileNotFoundError:
+        print("# file-not-found; config %r" % args.conf)
+        return None
 
 
 def execute(cmd, cwd=None, pipe=False):
@@ -200,6 +204,7 @@ def main(conf):
     # functions
 
     if conf is None:
+        print("# failed; invalid conf")
         return 1
 
     os.makedirs(conf["mirrors"], exist_ok=True)
