@@ -45,22 +45,25 @@ def args_to_conf():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     prsr.add_argument(
-        "--yaml",
-        help="Path to yaml-file describing what to do...",
-        required=True
-    )
-    prsr.add_argument(
         "--mirrors",
         help="Path to directory containing repository mirrors",
         default=os.getcwd(),
         required=True
     )
+    prsr.add_argument(
+        "--conf",
+        help="Path to yaml describing what to mirror and whereto",
+        required=False
+    )
+
     args = prsr.parse_args()
-    args.yaml = expand_path(args.yaml)
     args.mirrors = expand_path(args.mirrors)
+    if args.yaml is None:
+        args.yaml = os.path.join(args.mirrors, "muld.yml")
+    args.yaml = expand_path(args.yaml)
 
     conf = {}
-    with open(args.yaml, 'r') as yml_file:
+    with open(args.conf, 'r') as yml_file:
         conf.update(yaml.safe_load(yml_file))
 
     conf["mirrors"] = args.mirrors
