@@ -48,12 +48,10 @@ def args_to_conf():
         "--mirrors",
         help="Path to directory containing repository mirrors",
         default=os.getcwd(),
-        required=True
     )
     prsr.add_argument(
         "--conf",
         help="Path to yaml describing what to mirror and whereto",
-        required=False
     )
 
     args = prsr.parse_args()
