@@ -41,7 +41,7 @@ def args_to_conf():
     """Parse command-line options"""
 
     prsr = argparse.ArgumentParser(
-        description='git; Mirrror Upstream to Local to Downstream',
+        description='git; Mirror Upstream to Local to Downstream',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     prsr.add_argument(
