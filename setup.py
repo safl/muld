@@ -21,7 +21,7 @@ def read(*parts):
 
 setuptools.setup(
     name="muld",
-    version="0.0.6",
+    version="0.0.7",
     description="git; Mirror from Upstream to Local to Downstream",
     long_description=read('README.rst'),
     author="Simon A. F. Lund",
