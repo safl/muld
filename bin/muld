@@ -5,12 +5,26 @@
   For a list of repos do:
 
   * clone/fetch from upstream to local
-    - prune tags and branches; remove what does not exist on upstream
-  * push branches, not forcing it, from local to "downstream"
-  * push tags, not forcing it,  from local to "downstream"
+    - git clone UPSTREAM_URI
+    - git remote rename origin upstream
+
+  * Fetch upstream branches and tags with local-prune
+    - git fetch -pP upstream
+    - git branch --set-upstream-to  # When local branch does not exists ..
+    - git branch --track            # .. otherwise.
+    - git pull --rebase
+
+  * When "downstream" is defined
+    - git remote add downstream DOWNSTREAM_URI
+
+  * push branches and tags, not forcing it, from local to "downstream"
+    - git push downstream --all     # Pushing branches
+    - git push downstream --tags    # Pushing tags
 
   Basically, this is a soft way of forwarding changes from an "upstream" to a
-  "downstream" repository, via a "local" repository.
+  "downstream" repository, via a "local" repository. When upstream has
+  conflicting changes, e.g. from force-push then muld exits leaving it up to
+  you to resolve these.
 
   The local mirror-repository must not be used for anything else that this
   task, in case of any kind of error, then 'muld' exits with an error-message,
@@ -53,6 +67,18 @@ def args_to_conf():
         "--conf",
         help="Path to yaml describing what to mirror and whereto",
     )
+    prsr.add_argument(
+        '--no-fetch',
+        help="Skip fetch upstream",
+        action='store_true',
+        default=False,
+    )
+    prsr.add_argument(
+        '--no-push',
+        help="Skip pushing downstream",
+        action='store_true',
+        default=False,
+    )
 
     args = prsr.parse_args()
     args.mirrors = expand_path(args.mirrors)
@@ -66,6 +92,8 @@ def args_to_conf():
             conf.update(yaml.safe_load(yml_file))
 
         conf["mirrors"] = args.mirrors
+        conf["no_fetch"] = args.no_fetch
+        conf["no_push"] = args.no_push
 
         return conf
     except FileNotFoundError:
@@ -87,9 +115,8 @@ def execute(cmd, cwd=None, pipe=False):
     out, err = proc.communicate()
     rcode = proc.returncode
 
-    print(f"# rcode: {rcode}\n", flush=True)
     if rcode:
-        print("\n## ---=={[ EPIC FAIL -- see above -- EPIC FAIL ]}==--- ##\n")
+        print("\n## ---=={[ FAILED: above got rcode: {rcode} ]}==--- ##\n")
 
     return (out, err, rcode)
 
@@ -168,11 +195,16 @@ def repo_upstream_branches(conf, repo):
     return sorted(list(rnames))
 
 
-def repo_track_upstream_branches(conf, repo):
-    """Track all upstream branches"""
+def repo_branches_update(conf, repo):
+    """Fetch and prune from upstream, tracks in local and pulls changes"""
 
     branches_upstream = repo_upstream_branches(conf, repo)
     branches_local = repo_local_branches(conf, repo)
+
+    _, _, rcode = execute(
+        ["git", "fetch", "-pP", "upstream"],
+        cwd=repo_path(conf, repo)
+    )
 
     for upstream in branches_upstream:
         local = upstream[len("upstream/"):]
@@ -187,9 +219,24 @@ def repo_track_upstream_branches(conf, repo):
                 ["git", "branch", "--track", local, upstream],
                 cwd=repo_path(conf, repo)
             )
-
         if rcode:
-            print(f"# failed tracking: {upstream}")
+            print(f"# failed tracking branch: '{upstream}'")
+            return 1
+
+        _, _, rcode = execute(
+            ["git", "checkout", local],
+            cwd=repo_path(conf, repo)
+        )
+        if rcode:
+            print(f"# failed checking out branch: '{local}'")
+            return 1
+
+        _, _, rcode = execute(
+            ["git", "pull", "--rebase"],
+            cwd=repo_path(conf, repo)
+        )
+        if rcode:
+            print(f"# failed pulling branch: '{local}'")
             return 1
 
     return 0
@@ -231,17 +278,16 @@ def main(conf):
                 print(f"failed cloning: {repo}; aborting for manual fixup")
                 return 1
 
-        _, _, rcode = execute(
-            ["git", "fetch", "-pP", "upstream"],
-            cwd=repo_path(conf, repo)
-        )
-        if rcode:
-            print("failed fetching; aborting for manual fixup")
-            return 1
+        if conf["no_fetch"]:
+            print("skip: fetching upstream")
+        else:
+            if repo_branches_update(conf, repo):
+                print("failed updating; aborting for manual fixup")
+                return 1
 
-        if repo_track_upstream_branches(conf, repo):
-            print("failed tracking upstream; aborting for manual fixup")
-            return 1
+        if conf["no_push"]:
+            print("skip: pushing downstream")
+            continue
 
         if repo_downstream(repo) is None:
             print(f"no 'downstream'; skipping further handling of {repo}")
