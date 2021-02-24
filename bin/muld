@@ -261,6 +261,8 @@ def main(conf):
             print(f"# invalid repo: {repo}; fix it, then run again")
             return 1
 
+        print("\n## repos: %s" % repo_name(repo))
+
         if not os.path.exists(repo_path(conf, repo)):   # Grab the repository
             _, _, rcode = execute(
                 ["git", "clone", repo["upstream"], repo_path(conf, repo)],
