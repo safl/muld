@@ -298,7 +298,7 @@ def main(conf):
                 print("failed updating; aborting for manual fixup")
                 return 1
 
-        if conf["no_push"]:
+        if conf["no_push"] or repo.get("no_push", False):
             print("skip: pushing downstream")
             continue
 
