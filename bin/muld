@@ -291,7 +291,7 @@ def main(conf):
                 print(f"failed cloning: {repo}; aborting for manual fixup")
                 return 1
 
-        if conf["no_fetch"]:
+        if conf["no_fetch"] or repo.get("no_fetch", False):
             print("skip: fetching upstream")
         else:
             if repo_branches_update(conf, repo):
