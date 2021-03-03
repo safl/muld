@@ -68,6 +68,11 @@ def args_to_conf():
         help="Path to yaml describing what to mirror and whereto",
     )
     prsr.add_argument(
+        '--only-match',
+        help="Only process the repos matching the given string",
+        default=None
+    )
+    prsr.add_argument(
         '--no-fetch',
         help="Skip fetch upstream",
         action='store_true',
@@ -94,6 +99,7 @@ def args_to_conf():
         conf["mirrors"] = args.mirrors
         conf["no_fetch"] = args.no_fetch
         conf["no_push"] = args.no_push
+        conf["only_match"] = args.only_match
 
         return conf
     except FileNotFoundError:
@@ -257,6 +263,11 @@ def main(conf):
     os.makedirs(conf["mirrors"], exist_ok=True)
 
     for repo in conf["repos"]:
+        match = conf["only_match"]
+        if match and (match not in repo_name(repo)):
+            print(f"# skipping: {repo}; does not match {match}")
+            continue
+
         if "upstream" not in repo:
             print(f"# invalid repo: {repo}; fix it, then run again")
             return 1
