@@ -205,6 +205,7 @@ def repo_branches_update(conf, repo):
     """Fetch and prune from upstream, tracks in local and pulls changes"""
 
     branches_upstream = repo_upstream_branches(conf, repo)
+    branches_upstream_cnt = len(branches_upstream)
     branches_local = repo_local_branches(conf, repo)
 
     _, _, rcode = execute(
@@ -212,8 +213,9 @@ def repo_branches_update(conf, repo):
         cwd=repo_path(conf, repo)
     )
 
-    for upstream in branches_upstream:
+    for cnt, upstream in enumerate(branches_upstream):
         local = upstream[len("upstream/"):]
+        print(f"# updating branch {cnt}/{branches_upstream_cnt}: {local}")
 
         if local in branches_local:
             _, _, rcode = execute(
