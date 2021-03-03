@@ -23,6 +23,27 @@ will otherwise run happily in a cron-job.
 But, using Python for the task is 1000 times more fun. Also, ``muld`` does
 plain ``git clone``, does not use ``--bare``, ``--mirror`` or ``--recursive``.
 
+Install
+-------
+
+The common mode of usage is to install ``muld`` via the Python Package Index::
+
+  pip3 install --user muld
+
+Once you have done so, you should be able to run it, try::
+
+  muld --help
+
+If that does not work, then make sure that your shell looks for
+executables/binaries in the Python ``--user`` home, you can see where that is
+by running::
+
+  python3 -m site --user-base
+
+And if you use the Bash shell, then you can add it to ``PATH`` like so::
+
+  echo "export PATH=\"$PATH:$(python3 -m site --user-base)/bin\"" >> ~/.bash_aliases
+
 Usage
 -----
 
